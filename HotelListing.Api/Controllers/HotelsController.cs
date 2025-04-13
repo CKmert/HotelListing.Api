@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc; // Bietet Funktionen zur Erstellung von Web API-
 
 namespace HotelListing.Api.Controllers // Organisiert den Code logisch unter dem Namespace "HotelListing.Api.Controllers"
 {
+
     [Route("api/[controller]")] // Bestimmt die Basisroute des Controllers. [controller] wird durch den Klassennamen ersetzt, hier "Hotels" => api/hotels
     [ApiController] // Markiert diese Klasse als Web API-Controller (fügt automatisches Model Binding, Validierung, usw. hinzu)
     public class HotelsController : ControllerBase // Der Controller erbt von ControllerBase, was grundlegende Funktionen für APIs bereitstellt (ohne MVC-spezifische Views)
