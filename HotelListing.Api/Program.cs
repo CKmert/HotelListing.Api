@@ -4,32 +4,37 @@
 
 using HotelListing.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// ConnectionString im Program.cs definieren , dadurch weiß ASP.NET core wie es auf Datenbank zugreift
-// builder.Configuration geht auf appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("HotelListingDbConnectionString");
-// Db Context wird in die ApplicationStart eingefügt (ich nutze Sql Server da WIR SQL benutzen.)
-builder.Services.AddDbContext<HotelListlingDbContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddDbContext<HotelListlingDbContext>(options =>
+    options.UseSqlServer(connectionString));
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+
+// Korrigierte Swagger-Konfiguration
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Hotel Listing API", Version = "v1" });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Hotel Listing API v1");
+    });
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

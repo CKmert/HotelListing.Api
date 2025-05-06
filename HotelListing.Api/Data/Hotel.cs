@@ -1,4 +1,5 @@
-﻿using HotelListing.Api.Controllers;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using HotelListing.Api.Controllers;
 
 namespace HotelListing.Api.Data;
 
@@ -9,6 +10,7 @@ public class Hotel      // Klassenerstellung mit Propertiert (Eigenschaft)
     public string Address { get; set; }
     public double Rating { get; set; }
 
+    [ForeignKey(nameof(CountryId))]
     public int CountryId { get; set; } // 	Fremdschlüssel zur Country-Tabelle (z. B. ein Hotel liegt in Deutschland = ID 1)
 
     public Country? Country { get; set; } // Navigation-Eigenschaft: Damit kannst du auf das ganze Land zugreifen
