@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HotelListing.Api.Data;
+using HotelListing.Api.Models.Country;
+using HotelListing.Api.Configurations;
+using AutoMapper;
 
 namespace HotelListing.Api.Controllers
 {
@@ -14,31 +17,37 @@ namespace HotelListing.Api.Controllers
     public class CountriesController : ControllerBase
     {
         private readonly HotelListlingDbContext _context;
+        private readonly IMapper _mapper;
 
-        public CountriesController(HotelListlingDbContext context)
+        public CountriesController(HotelListlingDbContext context, IMapper mapper)
         {
             _context = context;
+            this._mapper = mapper;
         }
 
         // GET: api/Countries // Das Attribut, das diese Methode als GET-Endpunkt markiert
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Country>>> GetCountries() // IEnumerable = Sammlung Datentyp für mehrer Objekte
+        public async Task<ActionResult<IEnumerable<GetCountryDTO>>> GetCountries() // IEnumerable = Sammlung Datentyp für mehrer Objekte
         {
             // SELECT * from Countries
             var countries = await _context.Countries.ToListAsync(); // RÜckgabe wird in countries gespeichert
-            return Ok(countries); // Erstellt Rückgabewert für countries 200 Code
+            var records = _mapper.Map<List<GetCountryDTO>>(countries);
+            return Ok(records); // Erstellt Rückgabewert für countries 200 Code
         }
 
         // GET: api/Countries/5 = Methode: Endpunkt basierend auf die gewünschte ID
         [HttpGet("{id}")]
-        public async Task<ActionResult<Country>> GetCountry(int id) // Action gibt hier nur ein Rückgabewert 1 Objeklt raus
+        public async Task<ActionResult<CountryDTO>> GetCountry(int id) // Action gibt hier nur ein Rückgabewert 1 Objeklt raus
         {
-            var country = await _context.Countries.FindAsync(id);   // Gehe in die Datenbank -> Tabele Countries -> Suche nach id
+            var country = await _context.Countries.Include(q => q.Hotels) // Gehe in die Datenbank -> Tabele Countries -> füge die Liste mit Hotels der Countries
+                .FirstOrDefaultAsync(q => q.Id == id);   // suche mir nach der Id und gebe mir diesen aus
 
             if (country == null)
             {
                 return NotFound();
             }
+
+            var countryDto = _mapper.Map<CountryDTO>(country); // mapping zum Datentyp CountryDTO 
 
             return Ok(country);
         }
@@ -46,14 +55,22 @@ namespace HotelListing.Api.Controllers
         // PUT: api/Countries/5 Diese Methode wird ausgeführt, wenn ein HTTP PUT mit einer id kommt
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCountry(int id, Country country)
+        public async Task<IActionResult> PutCountry(int id, UpdateCountryDTO updateCountryDTO)
         {
-            if (id != country.Id)  // Passt die ID in der URL zu der ID im mitgeschickten Objekt?
+            if (id != updateCountryDTO.Id)  // Passt die ID in der URL zu der ID im mitgeschickten Objekt?
             {
                 return BadRequest("Invalid Record ID");
             }
 
-            _context.Entry(country).State = EntityState.Modified;  // Der State ändert sich deswegen Modified (update) 
+            //_context.Entry(country).State = EntityState.Modified;  // Der State ändert sich deswegen Modified (update) 
+
+            var country = await _context.Countries.FindAsync(id); // Suche nach der mitgeschickten ID (Argument)
+            if (country == null)
+            {
+                return NotFound();
+            }
+
+            _mapper.Map(updateCountryDTO, country); // Update die zu änderten Daten von updateCountryDTO und füge sie in das zu ändernde country Datensatz
 
             try
             {
@@ -78,8 +95,11 @@ namespace HotelListing.Api.Controllers
         [HttpPost]  // Das Attribut, das diese Methode als POST-Endpunkt markiert
 
         //  Asynchrone Methode, die ein ActionResult mit Country-Objekt zurückgibt (Rückgabetyp)
-        public async Task<ActionResult<Country>> PostCountry(Country country) // Das zu erstellende Land-Objekt, automatisch aus dem Request-Body / Parameter deserialisiert vom Typ Country
+        public async Task<ActionResult<Country>> PostCountry(CreateCountryDTO createCountryDto) // Das zu erstellende DTO mit 2 Props, automatisch aus dem Request-Body / Parameter deserialisiert vom Typ Country
         {
+
+            var country = _mapper.Map<Country>(createCountryDto); // DTO in Countrydateityp Mappen
+
             _context.Countries.Add(country);       // DBContext: wird oben über DI initialisiert - gehe zu Countries Tabelle und füge das Land hinzu
             await _context.SaveChangesAsync();     // Speichert die Änderungen in der Datenbank
 
