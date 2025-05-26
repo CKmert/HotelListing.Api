@@ -9,6 +9,7 @@ using HotelListing.Api.Data;
 using HotelListing.Api.Models.Country;
 using HotelListing.Api.Configurations;
 using AutoMapper;
+using HotelListing.Api.Contracts;
 
 namespace HotelListing.Api.Controllers
 {
@@ -16,13 +17,14 @@ namespace HotelListing.Api.Controllers
     [ApiController]
     public class CountriesController : ControllerBase
     {
-        private readonly HotelListlingDbContext _context;
+        
         private readonly IMapper _mapper;
+        private readonly ICountriesRepository _countriesRepository;
 
-        public CountriesController(HotelListlingDbContext context, IMapper mapper)
+        public CountriesController(IMapper mapper, ICountriesRepository countriesRepository )
         {
-            _context = context;
             this._mapper = mapper;
+            this._countriesRepository = countriesRepository;
         }
 
         // GET: api/Countries // Das Attribut, das diese Methode als GET-Endpunkt markiert
@@ -30,7 +32,7 @@ namespace HotelListing.Api.Controllers
         public async Task<ActionResult<IEnumerable<GetCountryDTO>>> GetCountries() // IEnumerable = Sammlung Datentyp für mehrer Objekte
         {
             // SELECT * from Countries
-            var countries = await _context.Countries.ToListAsync(); // RÜckgabe wird in countries gespeichert
+            var countries = await _countriesRepository.GetAllAsync(); // RÜckgabe wird in countries gespeichert
             var records = _mapper.Map<List<GetCountryDTO>>(countries);
             return Ok(records); // Erstellt Rückgabewert für countries 200 Code
         }
@@ -39,8 +41,7 @@ namespace HotelListing.Api.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<CountryDTO>> GetCountry(int id) // Action gibt hier nur ein Rückgabewert 1 Objeklt raus
         {
-            var country = await _context.Countries.Include(q => q.Hotels) // Gehe in die Datenbank -> Tabele Countries -> füge die Liste mit Hotels der Countries
-                .FirstOrDefaultAsync(q => q.Id == id);   // suche mir nach der Id und gebe mir diesen aus
+            var country = await _countriesRepository.GetDetails(id);
 
             if (country == null)
             {
@@ -64,7 +65,7 @@ namespace HotelListing.Api.Controllers
 
             //_context.Entry(country).State = EntityState.Modified;  // Der State ändert sich deswegen Modified (update) 
 
-            var country = await _context.Countries.FindAsync(id); // Suche nach der mitgeschickten ID (Argument)
+            var country = await _countriesRepository.GetAllAsync(id); // Suche nach der mitgeschickten ID (Argument)
             if (country == null)
             {
                 return NotFound();
@@ -74,11 +75,11 @@ namespace HotelListing.Api.Controllers
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _countriesRepository.UpdateAsync(country);
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!CountryExists(id))
+                if (!await CountryExists(id))
                 {
                     return NotFound();
                 }
@@ -100,8 +101,7 @@ namespace HotelListing.Api.Controllers
 
             var country = _mapper.Map<Country>(createCountryDto); // DTO in Countrydateityp Mappen
 
-            _context.Countries.Add(country);       // DBContext: wird oben über DI initialisiert - gehe zu Countries Tabelle und füge das Land hinzu
-            await _context.SaveChangesAsync();     // Speichert die Änderungen in der Datenbank
+            await _countriesRepository.AddAsync();       // DBContext: wird oben über DI initialisiert - gehe zu Countries Tabelle und füge das Land hinzu
 
             return CreatedAtAction("GetCountry", new { id = country.Id }, country);
         }
@@ -110,21 +110,20 @@ namespace HotelListing.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCountry(int id)
         {
-            var country = await _context.Countries.FindAsync(id);
+            var country = await _countriesRepository.GetAsync(id);
             if (country == null)
             {
                 return NotFound();
             }
 
-            _context.Countries.Remove(country);
-            await _context.SaveChangesAsync();
+            await _countriesRepository.DeleteAsync(id);
 
             return NoContent();
         }
 
-        private bool CountryExists(int id)
+        private async Task<bool> CountryExists(int id)
         {
-            return _context.Countries.Any(e => e.Id == id);
+            return await _countriesRepository.Exists(id);
         }
     }
 }
